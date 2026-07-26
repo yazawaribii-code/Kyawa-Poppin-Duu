@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ja"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>地偶歌曲練習小工具 - きゃわぽっぴんどぅー</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: "Hiragino Sans", "Meiryo", "PingFang TC", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* 控制列 */
+    .controls {
+      position: fixed;
+      top: 10px;
+      z-index: 100;
+      background: rgba(25, 25, 25, 0.95);
+      padding: 10px 16px;
+      border-radius: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 105, 180, 0.4);
+      width: 95%;
+      max-width: 720px;
+    }
+
+    audio {
+      height: 36px;
+      outline: none;
+      max-width: 100%;
+    }
+
+    .btn {
+      background: #ff69b4;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: #ff1493;
+    }
+
+    .btn.secondary {
+      background: #00bfff;
+    }
+    .btn.secondary:hover {
+      background: #0099cc;
+    }
+
+    .btn.danger {
+      background: #555;
+    }
+    .btn.danger:hover {
+      background: #777;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .time-info {
+      font-size: 14px;
+      color: #ff94c2;
+      font-family: monospace;
+      min-width: 65px;
+      text-align: center;
+    }
+
+    .rate-select {
+      background: #222;
+      color: #ff94c2;
+      border: 1px solid rgba(255,105,180,0.5);
+      border-radius: 12px;
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .offset-input {
+      width: 55px;
+      background: #222;
+      color: #ff94c2;
+      border: 1px solid rgba(255,105,180,0.5);
+      border-radius: 12px;
+      padding: 5px 6px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .offset-label {
+      font-size: 12px;
+      color: #999;
+    }
+
+    /* 逐句校正提示條 */
+    .sync-banner {
+      position: fixed;
+      top: 88px;
+      z-index: 99;
+      width: 92%;
+      max-width: 700px;
+      background: rgba(255, 20, 147, 0.15);
+      border: 1px solid rgba(255, 105, 180, 0.6);
+      border-radius: 16px;
+      padding: 12px 18px;
+      text-align: center;
+      display: none;
+    }
+
+    .sync-banner.show {
+      display: block;
+    }
+
+    .sync-banner .progress {
+      font-size: 12px;
+      color: #ff94c2;
+      margin-bottom: 6px;
+      font-family: monospace;
+    }
+
+    .sync-banner .target-text {
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .sync-banner .hint {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 6px;
+    }
+
+    /* 大顆 TAP 按鈕 */
+    .tap-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 150;
+      background: #ff1493;
+      color: white;
+      border: none;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      box-shadow: 0 0 0 0 rgba(255, 20, 147, 0.7);
+      animation: pulse 1.4s infinite;
+      cursor: pointer;
+      display: none;
+    }
+
+    .tap-btn.show {
+      display: block;
+    }
+
+    .tap-btn:active {
+      transform: translateX(-50%) scale(0.92);
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 20, 147, 0.6); }
+      70% { box-shadow: 0 0 0 22px rgba(255, 20, 147, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 20, 147, 0); }
+    }
+
+    .sync-controls {
+      position: fixed;
+      bottom: 155px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 150;
+      display: none;
+      gap: 8px;
+    }
+    .sync-controls.show {
+      display: flex;
+    }
+
+    /* 歌詞區域 */
+    .lyrics-container {
+      margin-top: 140px;
+      margin-bottom: 350px;
+      width: 95%;
+      max-width: 1100px;
+      text-align: center;
+      line-height: 2.2;
+    }
+
+    .line {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 24px 0;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+      opacity: 0.25;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border-radius: 12px;
+      padding: 6px 12px;
+      user-select: none;
+    }
+
+    .line:hover {
+      opacity: 0.6;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .line.active {
+      opacity: 1;
+      transform: scale(1.15);
+      text-shadow: 0 0 15px rgba(255, 105, 180, 0.9);
+      color: #ffffff;
+    }
+
+    .line.sync-target {
+      opacity: 1;
+      transform: scale(1.15);
+      color: #ffffff;
+      background: rgba(255, 105, 180, 0.18);
+      box-shadow: 0 0 0 2px #ff69b4;
+    }
+
+    .line.sync-done {
+      opacity: 0.4;
+    }
+
+    ruby {
+      ruby-align: center;
+    }
+
+    rt {
+      font-size: 13px;
+      color: #ff94c2;
+      font-weight: normal;
+      transform: translateY(-2px);
+    }
+
+    .spoken {
+      color: #ffe600;
+    }
+    
+    .line.spoken.active {
+      text-shadow: 0 0 15px rgba(255, 230, 0, 0.9);
+    }
+
+    .call {
+      color: #00ffff;
+      font-size: 20px;
+    }
+
+    .section-title {
+      color: #666;
+      font-size: 16px;
+      margin-top: 50px;
+      margin-bottom: 25px;
+      border-bottom: 1px dashed #333;
+      padding-bottom: 8px;
+    }
+
+    /* ============================================
+       以下為手機版 RWD 新增樣式，不影響原本電腦版顯示
+       ============================================ */
+    @media (max-width: 768px) {
+      .controls {
+        top: 6px;
+        width: 96%;
+        padding: 8px 10px;
+        gap: 6px;
+        border-radius: 16px;
+      }
+
+      audio {
+        width: 100%;
+        height: 32px;
+      }
+
+      .btn {
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+
+      .time-info {
+        font-size: 12px;
+        min-width: 55px;
+      }
+
+      .rate-select,
+      .offset-input {
+        font-size: 11px;
+      }
+
+      .offset-input {
+        width: 48px;
+      }
+
+      .offset-label {
+        font-size: 11px;
+      }
+
+      /* 歌詞區塊：手機版允許換行，避免橫向溢出捲動 */
+      .lyrics-container {
+        margin-top: 190px;
+        margin-bottom: 260px;
+        width: 100%;
+        padding: 0 4px;
+      }
+
+      .line {
+        font-size: 17px;
+        white-space: normal;
+        word-break: keep-all;
+        overflow-wrap: break-word;
+        line-height: 1.6;
+        margin: 16px 0;
+        padding: 6px 8px;
+        letter-spacing: 0.5px;
+      }
+
+      .line.active,
+      .line.sync-target {
+        transform: scale(1.08);
+      }
+
+      rt {
+        font-size: 11px;
+      }
+
+      .call {
+        font-size: 16px;
+      }
+
+      .section-title {
+        font-size: 14px;
+        margin-top: 36px;
+        margin-bottom: 18px;
+      }
+
+      /* 逐句校正提示條：手機版位置與寬度調整 */
+      .sync-banner {
+        top: 128px;
+        width: 94%;
+        padding: 10px 12px;
+      }
+
+      .sync-banner .target-text {
+        font-size: 17px;
+      }
+
+      /* TAP 按鈕：手機版縮小並貼近底部，避免遮擋過多歌詞 */
+      .tap-btn {
+        width: 90px;
+        height: 90px;
+        font-size: 15px;
+        bottom: 18px;
+      }
+
+      .sync-controls {
+        bottom: 120px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .controls {
+        padding: 6px 8px;
+      }
+
+      .btn {
+        font-size: 11px;
+        padding: 5px 8px;
+      }
+
+      .line {
+        font-size: 15.5px;
+      }
+
+      .lyrics-container {
+        margin-top: 210px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 控制面板 -->
+  <div class="controls">
+    <audio id="audioPlayer" controls="" src="きゃわぽっぴんどぅー.m4a"></audio>
+    <div class="time-info" id="timeDisplay">01:00.6</div>
+    <select class="rate-select" id="rateSelect">
+      <option value="1">1x 速度</option>
+      <option value="0.9">0.9x 速度</option>
+      <option value="0.85">0.85x 速度</option>
+      <option value="0.75">0.75x 速度</option>
+      <option value="0.5">0.5x 速度</option>
+    </select>
+    <span class="offset-label">反應延遲補償</span>
+    <input type="number" class="offset-input" id="offsetInput" value="-250" step="10"> ms
+    <span class="offset-label">整體位移</span>
+    <input type="number" class="offset-input" id="globalShiftInput" value="-250" step="10"> ms
+    <button class="btn secondary" id="applyShiftBtn">套用到全部句子</button>
+    <button class="btn" id="startSyncBtn" style="display: inline-block;">🎤 開始逐句校正</button>
+    <button class="btn danger" id="exitSyncBtn" style="display: none;">✖ 結束校正</button>
+    <button class="btn secondary" id="downloadBtn">⬇️ 下載校正後 HTML</button>
+  </div>
+
+  <!-- 逐句校正提示條 -->
+  <div class="sync-banner" id="syncBanner">
+    <div class="progress" id="syncProgress">第 2 / 73 句</div>
+    <div class="target-text" id="syncTargetText">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="hint">聽到這句歌詞「開口」的瞬間，按空白鍵或點下方粉紅按鈕</div>
+  </div>
+
+  <!-- 逐句校正操作按鈕 -->
+  <div class="sync-controls" id="syncControlsBar">
+    <button class="btn danger" id="syncBackBtn">↩️ 回上一句</button>
+    <button class="btn secondary" id="syncPauseBtn">⏸ 暫停</button>
+  </div>
+  <button class="tap-btn" id="tapBtn">TAP！<br>就是現在</button>
+
+  <!-- 歌詞區域 -->
+  <div class="lyrics-container" id="lyrics">
+
+    <!-- Verse 1 -->
+    <div class="line time-fixed" data-time="3.75">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="5.19">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="6.77">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="8.54">きゃわぽっぴん！きゃわぽっぴん！</div>
+    <div class="line" data-time="10.06">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="11.53">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="12.98">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="14.62">きゃわぽっぴん！きゃわぽっぴん！</div>
+    <div class="line" data-time="16.57">きゃわぽっぴんどぅー！</div>
+
+    <div class="line" data-time="18.14">むきたまのハダ ナチュラルなメイク</div>
+    <div class="line" data-time="20.60">ヒールよりも<ruby>厚底<rt>あつぞこ</rt></ruby>スニーカー</div>
+    <div class="line" data-time="24.46"><ruby>甘<rt>あま</rt></ruby>えた<ruby>声<rt>こえ</rt></ruby>はときたまがチャンス</div>
+    <div class="line" data-time="27.25"><ruby>乱用禁止<rt>らんようきんし</rt></ruby>！ばってんぶー！<span class="call">（ぶっぶー！）</span></div>
+
+    <div class="line spoken" data-time="31.01">はーい！きゃわいさ<ruby>検定<rt>けんてい</rt></ruby>！みんなはどれだけわかるかな～？</div>
+    <div class="line spoken" data-time="34.03"><ruby>1<rt>いち</rt></ruby>＋<ruby>1<rt>たす</rt></ruby><ruby>＝<rt>いちは</rt></ruby>『きゃわにー！』</div>
+    <div class="line spoken" data-time="35.60"><ruby>sin<rt>サイン</rt></ruby> <ruby>cos<rt>コサイン</rt></ruby>？『きゃわたん！』</div>
+    <div class="line spoken" data-time="37.19"><ruby>祇園精舎<rt>ぎおんしょうじゃ</rt></ruby>の？『きゃわりん！』</div>
+    <div class="line spoken" data-time="38.81"><ruby>水兵<rt>すいへい</rt></ruby>リーベ『きゃわの<ruby>船<rt>ふね</rt></ruby>！』</div>
+    <div class="line spoken" data-time="40.35">はい！みなさんよく<ruby>出来<rt>でき</rt></ruby>ました！<ruby>合格<rt>ごうかく</rt></ruby>♪</div>
+
+    <div class="line" data-time="43.30">きゃかわいいのヒミツはなんなのら？</div>
+    <div class="line" data-time="46.22">ガチャ<ruby>勝<rt>か</rt></ruby>ちじゃなくて<ruby>努力<rt>どりょく</rt></ruby>でぇす！</div>
+    <div class="line" data-time="49.48">きゃかわいいのヒミツ<ruby>教<rt>おし</rt></ruby>えてあげる</div>
+    <div class="line" data-time="52.75">あ！でもまって！やっぱり！<ruby>教<rt>おし</rt></ruby>えてあげなーい！</div>
+    <div class="line" data-time="56.10">ちゃんちゃん♪</div>
+
+    <div class="section-title">--- Verse 2 ---</div>
+
+    <!-- Verse 2 -->
+    <div class="line" data-time="58.15">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="59.55">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="61.04">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="62.68">きゃわぽっぴん！きゃわぽっぴん！</div>
+    <div class="line" data-time="64.51">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="65.90">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="67.47">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="69.08">きゃわぽっぴんどぅー！</div>
+
+    <div class="line" data-time="70.90"><ruby>好<rt>す</rt></ruby>きなものを<ruby>好<rt>す</rt></ruby>きなようにチョイス</div>
+    <div class="line" data-time="73.48">あれもこれもわたしかわいい</div>
+    <div class="line" data-time="77.37"><ruby>知<rt>し</rt></ruby>った<ruby>風<rt>ふう</rt></ruby>のアドバイスなんて</div>
+    <div class="line" data-time="79.87"><ruby>知<rt>し</rt></ruby>らない！<ruby>聞<rt>き</rt></ruby>いてない！ばってんぶー！<span class="call">（ふっふー！）</span></div>
+
+    <div class="line spoken" data-time="83.33"><ruby>血液型<rt>けつえきがた</rt></ruby>だとかなんとか</div>
+    <div class="line spoken" data-time="85.08">MBTIどうだとか</div>
+    <div class="line spoken" data-time="86.79">イエベにブルベに</div>
+    <div class="line spoken" data-time="88.00">そんなのばっかじゃ<ruby>着<rt>き</rt></ruby>てみたい<ruby>服<rt>ふく</rt></ruby>も<ruby>着<rt>き</rt></ruby>れないじゃん！</div>
+
+    <div class="line spoken" data-time="90.10"><ruby>ツヤ髪<rt>つやかみ</rt></ruby>ケアしてCute！Cute！</div>
+    <div class="line spoken" data-time="91.52">ポジティブ<ruby>思考<rt>しこう</rt></ruby>でCute！Cute！</div>
+    <div class="line spoken" data-time="93.01"><ruby>笑顔<rt>えがお</rt></ruby>を<ruby>大事<rt>だいじ</rt></ruby>にCute！Cute！</div>
+    <div class="line spoken" data-time="94.85">やっぱそれが<ruby>大事<rt>だいじ</rt></ruby>！</div>
+
+    <div class="line" data-time="96.07">きゃかわいいのヒミツはなんなのら？</div>
+    <div class="line" data-time="99.01"><ruby>垢抜け<rt>あかねけ</rt></ruby>は<ruby>日々<rt>ひび</rt></ruby>の<ruby>努力<rt>どりょく</rt></ruby>でぇす！</div>
+    <div class="line" data-time="102.21">きゃかわいいのヒミツ<ruby>教<rt>おし</rt></ruby>えてあげる</div>
+    <div class="line" data-time="105.43"><ruby>君<rt>きみ</rt></ruby>だけにこっそり<ruby>教<rt>おし</rt></ruby>えてあげる</div>
+
+    <div class="section-title">--- Chorus &amp; Outro ---</div>
+
+    <!-- Chorus & Outro -->
+    <div class="line" data-time="109.12"><ruby>似合<rt>にあ</rt></ruby>うとか<span class="call">（Yes！Yes！）</span><ruby>似合<rt>にあ</rt></ruby>わないとか<span class="call">（No！No！）</span></div>
+    <div class="line" data-time="112.52">そんなのどーでもよいのです<span class="call">（よいのです！）</span></div>
+    <div class="line" data-time="115.82"><ruby>大好<rt>だいす</rt></ruby>きに<span class="call">（らぶ！らぶ！）</span><ruby>囲<rt>かこ</rt></ruby>まれたら<span class="call">（らぶ！らぶ！）</span></div>
+    <div class="line" data-time="118.93">めちゃかわいくなれる</div>
+
+    <div class="line" data-time="122.18">あなたはだんだんかわいくなーる</div>
+    <div class="line" data-time="125.38">わたしはだんだんかわいくなーる</div>
+    <div class="line" data-time="128.57">みんなもだんだんかわいくなーる</div>
+    <div class="line" data-time="131.76"><ruby>宇宙<rt>うちゅう</rt></ruby>で<ruby>一番<rt>いちばん</rt></ruby>かわいくなーれ！</div>
+
+    <div class="line" data-time="147.35">きゃかわいいって<ruby>言<rt>い</rt></ruby>ったぶんきゃわいくなるの！</div>
+
+    <div class="line" data-time="150.51">きゃかわいいのヒミツはなんなのら？</div>
+    <div class="line" data-time="153.60">ガチャ<ruby>勝<rt>か</rt></ruby>ちじゃなくて<ruby>努力<rt>どりょく</rt></ruby>でぇす！</div>
+    <div class="line" data-time="156.72">きゃかわいいのヒミツ<ruby>教<rt>おし</rt></ruby>えてあげる</div>
+    <div class="line" data-time="160.09"><ruby>君<rt>きみ</rt></ruby>だけにこっそり<ruby>教<rt>おし</rt></ruby>えてあげる</div>
+
+    <div class="line" data-time="163.73"><ruby>似合<rt>にあ</rt></ruby>うとか<span class="call">（Yes！Yes！）</span><ruby>似合<rt>にあ</rt></ruby>わないとか<span class="call">（No！No！）</span></div>
+    <div class="line" data-time="166.94">そんなのどーでもよいのです<span class="call">（よいのです！）</span></div>
+    <div class="line" data-time="170.28"><ruby>大好<rt>だいす</rt></ruby>きに<span class="call">（らぶ！らぶ！）</span><ruby>囲<rt>かこ</rt></ruby>まれたら<span class="call">（らぶ！らぶ！）</span></div>
+    <div class="line" data-time="173.31">めちゃかわいくなれる</div>
+
+    <div class="line" data-time="178.25">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="179.69">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="181.29">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="182.91">きゃわぽっぴん！きゃわぽっぴん！</div>
+    <div class="line" data-time="184.51">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="186.09">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="187.57">きゃきゃきゃきゃきゃわぽっぴん！</div>
+    <div class="line" data-time="189.35">きゃわぽっぴんどぅー！</div>
+
+  </div>
+
+  <script>
+    const audio = document.getElementById('audioPlayer');
+    const lines = document.querySelectorAll('.line');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const startSyncBtn = document.getElementById('startSyncBtn');
+    const exitSyncBtn = document.getElementById('exitSyncBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const rateSelect = document.getElementById('rateSelect');
+    const offsetInput = document.getElementById('offsetInput');
+    const globalShiftInput = document.getElementById('globalShiftInput');
+    const applyShiftBtn = document.getElementById('applyShiftBtn');
+    const syncBanner = document.getElementById('syncBanner');
+    const syncProgress = document.getElementById('syncProgress');
+    const syncTargetText = document.getElementById('syncTargetText');
+    const tapBtn = document.getElementById('tapBtn');
+    const syncControlsBar = document.getElementById('syncControlsBar');
+    const syncBackBtn = document.getElementById('syncBackBtn');
+    const syncPauseBtn = document.getElementById('syncPauseBtn');
+
+    let currentIndex = -1;
+    let syncMode = false;
+    let syncIndex = 0;
+    let soloLine = null; // 單句校正模式：目前正在校正的那一行元素
+
+    // ---------- 一般播放：跟隨字幕高亮 ----------
+    audio.addEventListener('timeupdate', () => {
+      const currentTime = audio.currentTime;
+
+      const mins = Math.floor(currentTime / 60);
+      const secs = (currentTime % 60).toFixed(1);
+      timeDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+
+      if (syncMode) return; // 校正模式下不做一般跟字
+
+      let newIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const lineTime = parseFloat(lines[i].getAttribute('data-time'));
+        if (currentTime >= lineTime) {
+          newIndex = i;
+        } else {
+          break;
+        }
+      }
+
+      if (newIndex !== currentIndex) {
+        if (currentIndex !== -1 && lines[currentIndex]) {
+          lines[currentIndex].classList.remove('active');
+        }
+
+        currentIndex = newIndex;
+
+        if (currentIndex !== -1 && lines[currentIndex]) {
+          const activeLine = lines[currentIndex];
+          activeLine.classList.add('active');
+          activeLine.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }
+    });
+
+    lines.forEach(line => {
+      line.addEventListener('click', () => {
+        if (syncMode || soloLine) return; // 校正模式下改用 TAP 按鈕，避免誤觸跳轉
+        const targetTime = parseFloat(line.getAttribute('data-time'));
+        audio.currentTime = targetTime;
+        audio.play();
+      });
+      line.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        if (syncMode) return;
+        startSoloSync(line);
+      });
+    });
+
+    rateSelect.addEventListener('change', () => {
+      audio.playbackRate = parseFloat(rateSelect.value);
+    });
+
+    // ---------- 整體位移：一次把所有句子的時間往前/往後搬 ----------
+    applyShiftBtn.addEventListener('click', () => {
+      if (syncMode || soloLine) return;
+      const ms = parseFloat(globalShiftInput.value) || 0;
+      const sec = ms / 1000;
+      lines.forEach(line => {
+        const t = Math.max(0, parseFloat(line.getAttribute('data-time')) + sec);
+        line.setAttribute('data-time', t.toFixed(2));
+      });
+      alert(`已將全部歌詞時間整體${ms >= 0 ? '延後' : '提前'} ${Math.abs(ms)}ms，記得下載保存！`);
+    });
+
+    // ---------- 逐句校正模式 ----------
+    function enterSyncMode() {
+      syncMode = true;
+      syncIndex = 0;
+      lines.forEach(l => {
+        l.classList.remove('active', 'sync-target', 'sync-done', 'time-fixed');
+      });
+      startSyncBtn.style.display = 'none';
+      exitSyncBtn.style.display = 'inline-block';
+      syncBanner.classList.add('show');
+      syncControlsBar.classList.add('show');
+      tapBtn.classList.add('show');
+      updateSyncTarget();
+      audio.currentTime = 0;
+      audio.play();
+    }
+
+    function exitSyncMode(finished) {
+      syncMode = false;
+      startSyncBtn.style.display = 'inline-block';
+      exitSyncBtn.style.display = 'none';
+      syncBanner.classList.remove('show');
+      syncControlsBar.classList.remove('show');
+      tapBtn.classList.remove('show');
+      lines.forEach(l => l.classList.remove('sync-target', 'sync-done'));
+      audio.pause();
+      if (finished) {
+        alert('🎉 全部歌詞都校正完成囉！記得點「下載校正後 HTML」保存成果～');
+      }
+    }
+
+    // ---------- 單句校正模式（雙擊任一句觸發） ----------
+    function startSoloSync(line) {
+      if (syncMode || soloLine) return;
+      soloLine = line;
+      lines.forEach(l => l.classList.remove('sync-target'));
+      line.classList.add('sync-target');
+      startSyncBtn.style.display = 'none';
+      exitSyncBtn.style.display = 'inline-block';
+      syncBanner.classList.add('show');
+      syncProgress.innerText = '雙擊校正單句中（按 Esc 取消）';
+      syncTargetText.innerText = line.innerText;
+      syncControlsBar.classList.add('show');
+      syncBackBtn.style.display = 'none';
+      tapBtn.classList.add('show');
+
+      const t = parseFloat(line.getAttribute('data-time'));
+      audio.currentTime = Math.max(0, t - 1.5);
+      audio.play();
+    }
+
+    function endSoloSync() {
+      if (soloLine) soloLine.classList.remove('sync-target');
+      soloLine = null;
+      startSyncBtn.style.display = 'inline-block';
+      exitSyncBtn.style.display = 'none';
+      syncBanner.classList.remove('show');
+      syncControlsBar.classList.remove('show');
+      syncBackBtn.style.display = 'inline-block';
+      tapBtn.classList.remove('show');
+    }
+
+    function updateSyncTarget() {
+      lines.forEach(l => l.classList.remove('sync-target'));
+      if (syncIndex >= lines.length) {
+        exitSyncMode(true);
+        return;
+      }
+      const line = lines[syncIndex];
+      line.classList.add('sync-target');
+      line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      syncProgress.innerText = `第 ${syncIndex + 1} / ${lines.length} 句`;
+      syncTargetText.innerText = line.innerText;
+    }
+
+    function doTap() {
+      const offsetMs = parseFloat(offsetInput.value) || 0;
+
+      if (soloLine) {
+        const t = Math.max(0, audio.currentTime - offsetMs / 1000);
+        soloLine.setAttribute('data-time', t.toFixed(2));
+        endSoloSync();
+        return;
+      }
+
+      if (!syncMode || syncIndex >= lines.length) return;
+      const t = Math.max(0, audio.currentTime - offsetMs / 1000);
+      const line = lines[syncIndex];
+      line.setAttribute('data-time', t.toFixed(2));
+      line.classList.add('sync-done', 'time-fixed');
+      syncIndex++;
+      updateSyncTarget();
+    }
+
+    function syncBack() {
+      if (!syncMode || syncIndex === 0) return;
+      syncIndex--;
+      const line = lines[syncIndex];
+      line.classList.remove('sync-done', 'time-fixed');
+      updateSyncTarget();
+    }
+
+    startSyncBtn.addEventListener('click', enterSyncMode);
+    exitSyncBtn.addEventListener('click', () => {
+      if (soloLine) endSoloSync();
+      else exitSyncMode(false);
+    });
+    tapBtn.addEventListener('click', doTap);
+    syncBackBtn.addEventListener('click', syncBack);
+
+    syncPauseBtn.addEventListener('click', () => {
+      if (audio.paused) {
+        audio.play();
+        syncPauseBtn.innerText = '⏸ 暫停';
+      } else {
+        audio.pause();
+        syncPauseBtn.innerText = '▶️ 繼續';
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!syncMode && !soloLine) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        doTap();
+      } else if (e.code === 'Backspace' && syncMode) {
+        e.preventDefault();
+        syncBack();
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        if (soloLine) endSoloSync();
+        else if (syncMode) exitSyncMode(false);
+      }
+    });
+
+    // ---------- 下載校正後的完整 HTML ----------
+    downloadBtn.addEventListener('click', () => {
+      lines.forEach(l => l.classList.remove('active', 'sync-target', 'sync-done'));
+      const fullHTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([fullHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'karaoke_校正後.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+
+</body></html>
