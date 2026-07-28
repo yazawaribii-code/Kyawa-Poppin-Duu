@@ -565,6 +565,15 @@
     let syncIndex = 0;
     let soloLine = null; // 單句校正模式：目前正在校正的那一行元素
 
+    // ---------- 音量記憶：讀取上次設定的音量，避免每次重整都變滿格 ----------
+    const VOLUME_KEY = 'karaoke_saved_volume';
+    const savedVolume = localStorage.getItem(VOLUME_KEY);
+    audio.volume = savedVolume !== null ? parseFloat(savedVolume) : 0.4; // 沒有記錄過的話，預設 40% 音量
+
+    audio.addEventListener('volumechange', () => {
+      localStorage.setItem(VOLUME_KEY, audio.volume.toString());
+    });
+
     // ---------- 一般播放：跟隨字幕高亮 ----------
     audio.addEventListener('timeupdate', () => {
       const currentTime = audio.currentTime;
